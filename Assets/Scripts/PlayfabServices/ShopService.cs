@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using DefaultNamespace;
 using PlayFab;
 using PlayFab.ClientModels;
@@ -9,69 +10,75 @@ namespace PlayfabServices
 {
     public class ShopService : MonoBehaviour
     {
-        /*
-        public void Start()
-        {
-        }
+        private List<CatalogItem> _catalog = new List<CatalogItem>();
+        private List<ShopItem> _currentShop = new List<ShopItem>();
+        public List<CatalogItem> Catalog => _catalog;
+        public List<ShopItem> ShopItems => _currentShop;
 
-        public void GetStoreData(Stores storeId, Action<List<ShopItem>> onSuccess)
+        public void GetCatalog()
         {
+            void OnSuccess(GetCatalogItemsResult result)
+            {
+                _catalog = result.Catalog;
+            }
+            
+            var request = new GetCatalogItemsRequest()
+            {
+                CatalogVersion = "Main"
+            };
+            PlayFabClientAPI.GetCatalogItems(request, OnSuccess, OnError);
+        }
+        
+        public void UpdateStoreData(Stores storeId, PlayerInventory inventory, Action<List<ShopItem>> onSuccess = null)
+        {
+            void OnSuccess(GetStoreItemsResult result)
+            {
+                CreateStore(result, inventory); 
+                onSuccess?.Invoke(ShopItems);
+            }
+            
             var request = new GetStoreItemsRequest
             {
                 CatalogVersion = "Main",
                 StoreId = ((int)storeId).ToString()
             };
-            PlayFabClientAPI.GetStoreItems(request, (result) =>
-            {
-                var data = OnGetResult(result); 
-                onSuccess?.Invoke(data);
-            }, OnError);
+            PlayFabClientAPI.GetStoreItems(request, OnSuccess, OnError);
         }
 
-        public void UpdatePlayerData(PlayerData data)
+        public void BuyItem(int itemId, int storeId, Action<List<ItemInstance>> onSuccess = null)
         {
-            var request = new UpdateUserDataRequest
+            void OnSuccess(PurchaseItemResult result)
             {
-                Data = new Dictionary<string, string>()
-                {
-                    { "Coins", data.Coins.ToString() },
-                    { "Highscore", data.Highscore.ToString() },
-                    { "ActualSkin", ((int)data.ActualSkin).ToString()}
-                }
+                onSuccess?.Invoke(result.Items);
+            }
+            
+            var request = new PurchaseItemRequest
+            {
+                CatalogVersion = "Main",
+                StoreId = ((int)storeId).ToString(),
+                ItemId = itemId.ToString(),
+                VirtualCurrency = Enum.GetName(typeof(Currencies), Currencies.GC)
             };
-            PlayFabClientAPI.UpdateUserData(request, OnUpdateSuccess, OnError);
+            PlayFabClientAPI.PurchaseItem(request, OnSuccess, OnError);
         }
         
-        private void SetNewPlayerData()
+        private void CreateStore(GetStoreItemsResult result, PlayerInventory inventory)
         {
-            PlayerData data = new PlayerData();
-            UpdatePlayerData(data);
-        }
+            if (result.Store == null) return;
 
-        private List<StoreItem> OnGetResult(GetStoreItemsResult result)
-        {
-            if(result.Data == null || !result.Data.ContainsKey("Coins") || 
-               !result.Data.ContainsKey("Highscore") || !result.Data.ContainsKey("ActualSkin")) return null;
-
-            PlayerData data = new PlayerData
+            _currentShop.Clear();
+            foreach (var storeItem in result.Store)
             {
-                Coins = int.Parse(result.Data["Coins"].Value),
-                Highscore = int.Parse(result.Data["Highscore"].Value),
-                ActualSkin = (Skins)int.Parse(result.Data["ActualSkin"].Value),
-            };
-            return data;
-        }
-
-        private void OnUpdateSuccess(UpdateUserDataResult result)
-        {
-            PlayfabEventsBus.OnUserDataUpdated?.Invoke();
+                bool isSold = inventory.Items.Any((i) => i.ItemId.Equals(storeItem.ItemId));
+                _currentShop.Add(new ShopItem{Item = storeItem, IsSold = isSold});
+            }
         }
 
         private void OnError(PlayFabError error)
         {
             Debug.LogError("Inventory request failed - " + error.ErrorMessage);
         }
-        */
+        
     }
     
 }

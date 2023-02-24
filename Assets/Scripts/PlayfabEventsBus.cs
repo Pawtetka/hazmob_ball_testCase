@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using PlayfabServices;
 
 namespace DefaultNamespace
@@ -7,7 +8,7 @@ namespace DefaultNamespace
     {
         public static Action OnLoginSuccess;
         public static Action OnFirstLoginDetected;
-        public static Action OnUserDataUpdated;
-        public static Action OnUserCoinsUpdated;
+        public static Action OnShopUpdated;
+        public static Action OnCoinsUpdated;
     }
 }
